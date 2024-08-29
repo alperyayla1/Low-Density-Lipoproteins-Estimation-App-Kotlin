@@ -12,6 +12,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Info
 import kotlin.math.*
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.foundation.background
@@ -52,6 +53,7 @@ fun LDLCalculatorApp() {
     var message by remember { mutableStateOf<Message>(Message.Welcome) }
     var hasCalculated by remember { mutableStateOf(false) }
     //var errorMessage by remember { mutableStateOf("") }
+    var showInfoDialog by remember { mutableStateOf(false) }
     fun calculateAndUpdateLDL() {
         //errorMessage = ""
 
@@ -78,7 +80,7 @@ fun LDLCalculatorApp() {
         val hdlMgDL = hdlValue
         val tgMgDL = tgValue
 
-        val methods = listOf("Friedewald Formula", "Sampson-NIH Formula", "Yayla-TR Formula", "Extended Martin Formula")
+        val methods = listOf("Friedewald", "Sampson-NIH", "Yayla-TR", "Extended Martin")
         ldlResults = methods.associateWith { method ->
             val ldlInMgDL = calculateLDL(tcMgDL, hdlMgDL, tgMgDL, method)
             if (ldlInMgDL < 0) {
@@ -151,14 +153,25 @@ fun LDLCalculatorApp() {
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary
                 )
-                IconButton(onClick = { resetFields() }) {
-                    Icon(
-                        imageVector = Icons.Default.Refresh,
-                        contentDescription = "Reset",
-                        tint = MaterialTheme.colorScheme.primary
-                    )
+                Row {
+                    IconButton(onClick = { resetFields() }) {
+                        Icon(
+                            imageVector = Icons.Default.Refresh,
+                            contentDescription = "Reset",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    IconButton(onClick = { showInfoDialog = true }) {
+                        Icon(
+                            imageVector = Icons.Default.Info,
+                            contentDescription = "Formula Information",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
                 }
+
             }
+
             Spacer(modifier = Modifier.height(32.dp))
             //MessageDisplay(message)
             InputFieldWithUnitSpinner(
@@ -306,6 +319,50 @@ fun LDLCalculatorApp() {
             }
         }
     }
+if (showInfoDialog) {
+    FormulaInfoDialog(onDismiss = { showInfoDialog = false })
+}
+}
+
+@Composable
+fun FormulaInfoDialog(onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("LDL Calculation Formulas") },
+        text = {
+            Column {
+                Text(
+                    """
+                            1. Friedewald:
+                            LDL = TC - HDL - (TG / 5)
+                            
+                            2. Sampson-NIH:
+                            LDL = (TC / 0.948) - (HDL / 0.971) -
+                            ((TG / 8.56) + (TG * (TC - HDL) / 2140) -
+                            (TG * TG / 16100)) - 9.44
+                            
+                            3. Yayla-TR:
+                            LDL = TC - HDL - (√TG * TC / 100)
+                            
+                            4. Extended Martin:
+                            Uses a complex table based on TG and
+                            non-HDL cholesterol levels
+                            
+                            Where:
+                            TC = Total Cholesterol
+                            HDL = HDL Cholesterol
+                            TG = Triglycerides
+                            """.trimIndent(),
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Close")
+            }
+        }
+    )
 }
 
 sealed class Message {
@@ -583,10 +640,10 @@ fun getMartinDivisor(triglycerides: Int, nonHDLC: Int): Double {
 }
 fun calculateLDL(totalCholesterol: Double, hdlCholesterol: Double, triglycerides: Double, method: String): Double {
     return when (method) {
-        "Friedewald Formula" -> totalCholesterol - hdlCholesterol - (triglycerides / 5)
-        "Sampson-NIH Formula" -> (totalCholesterol / 0.948) - (hdlCholesterol / 0.971) - ((triglycerides / 8.56) + (triglycerides * ((totalCholesterol - hdlCholesterol)/2140)) - (triglycerides * triglycerides/16100)) - 9.44
-        "Yayla-TR Formula" -> totalCholesterol - hdlCholesterol - (((sqrt(triglycerides)*totalCholesterol) / 100))
-        "Extended Martin Formula" -> {
+        "Friedewald" -> totalCholesterol - hdlCholesterol - (triglycerides / 5)
+        "Sampson-NIH" -> (totalCholesterol / 0.948) - (hdlCholesterol / 0.971) - ((triglycerides / 8.56) + (triglycerides * ((totalCholesterol - hdlCholesterol)/2140)) - (triglycerides * triglycerides/16100)) - 9.44
+        "Yayla-TR" -> totalCholesterol - hdlCholesterol - (((sqrt(triglycerides)*totalCholesterol) / 100))
+        "Extended Martin" -> {
             val nonHDLC = totalCholesterol - hdlCholesterol
             val divisor = getMartinDivisor(triglycerides.toInt(), nonHDLC.toInt())
             totalCholesterol - hdlCholesterol - (triglycerides / divisor)
